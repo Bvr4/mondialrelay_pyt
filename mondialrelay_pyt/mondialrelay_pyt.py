@@ -214,56 +214,33 @@ class MRWebService(object):
         self.security_key = security_key
 
     def valid_dict(self, dico):
-        ''' Get a dictionnary, check if all required fields are provided,
-        and if the values correpond to the required format.'''
+        """ Get a dictionnary, check if all required fields are provided"""
 
-        mandatory = [
-            'Enseigne',
-            'ModeCol',
-            'ModeLiv',
-            'Expe_Langage',
-            'Expe_Ad1',
-            'Expe_Ad3',
-            'Expe_Ville',
-            'Expe_CP',
-            'Expe_Pays',
-            'Expe_Tel1',
-            'Dest_Langage',
-            'Dest_Ad1',
-            'Dest_Ad3',
-            'Dest_Ville',
-            'Dest_CP',
-            'Dest_Pays',
-            'Poids',
-            'NbColis',
-            'CRT_Valeur',
-            ]
+        mandatory_keys = {
+            "Context": ["Login", "Password", "CustomerId", "Culture", "VersionAPI"],
+            "OutputOptions": ["OutputFormat", "OutputType"],
+            "Shipment": ["ParcelCount", "DeliveryMode", "CollectionMode", "Parcel"],
+            "Address": ["StreetName", "Postcode", "City", "AddressAdd1"],
+        }
 
+        for key, subkeys in mandatory_keys.items():
+            if key not in dico:
+                raise Exception(f"Mandatory key {key} not given in the dictionnary")
+            
+            for mandatory_subkey in subkeys:
+                if mandatory_subkey not in dico[key]:
+                    raise Exception(f"Mandatory key {key}.{mandatory_subkey} not given in the dictionnary")
 
-        if ('ModeLiv' or 'ModeCol') not in dico:
-            raise Exception('The given dictionnary is not valid.')
+        if "Mode" not in dico["DeliveryMode"]:
+            raise Exception(f"Mandatory key DeliveryMode.Mode not given in the dictionnary")
 
-        for element in dico:
-            if element not in MR_KEYS:
-                raise Exception('Key %s not valid in given dictionnary' %element)
-            formt = MR_KEYS[element]
-            #if dico[element] and re.match(formt, dico[element].upper()) == None:
-            #    raise Exception('Value %s not valid in given dictionary, key %s, expected format %s' %(dico[element],element, MR_KEYS[element]))
+        if dico["DeliveryMode"]["Mode"] == "24R" or dico["DeliveryMode"]["Mode"] == "24L":
+            if "Location" not in dico["DeliveryMode"]:
+                raise Exception(f"Mandatory key DeliveryMode.Location not given in the dictionnary")
 
-        if dico['ModeLiv'] == "24R":
-            mandatory.insert(19,'LIV_Rel')
-            mandatory.insert(19,'LIV_Rel_Pays')
-        if dico['ModeCol'] == "REL":
-            mandatory.insert(19,'COL_Rel')
-            mandatory.insert(19,'COL_Rel_Pays')
-        if dico['ModeLiv'] == "LDS":
-            mandatory.insert(16,'Dest_Tel1')
+        if "Value" not in dico["Shipment"]["Parcel"]["Weight"]:
+            raise Exception(f"Mandatory key Shipment.Parcel.Weight not given in the dictionnary")
 
-        for mandatkey in mandatory:
-            if mandatkey not in dico:
-                raise Exception('Mandatory key %s not given in the dictionnary' %mandatkey)
-
-        return True
 
     #------------------------------------#
     #      functions to clean the xml    #
@@ -315,7 +292,7 @@ class MRWebService(object):
         OUT = XML (as an utf-8 encoded string) ready to send a request '''
 
         #check if the given dictionnary is correct to make an xml
-        mandat_dic = MRWebService.valid_dict(self, vals)
+        MRWebService.valid_dict(self, vals)
 
         #initialisation of future md5key
         security = ""

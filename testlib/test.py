@@ -22,14 +22,14 @@ dico = {
         "CustomerNo": "cust01",
         "ParcelCount": 1,
         "DeliveryMode": {
-            "mode": "24R",
-            "location": "78857",            
+            "Mode": "24R",
+            "Location": "78857",            
         },
         "CollectionMode": {
-            "mode": "REL",            
+            "Mode": "REL",            
         },
         "Parcel": {
-            "weight": {
+            "Weight": {
                 "Value": 350,
             },
         },
@@ -41,7 +41,7 @@ dico = {
         "CountryCode": "FR",
         "Postcode": "14000",
         "City": "Caen",
-        "AdressAdd1": "Jean Michmuch",
+        "AddressAdd1": "Jean Michmuch",
         # "AdressAdd2": "",
         # "AdressAdd3": "",
         "PhoneNo": "0033612345678",
