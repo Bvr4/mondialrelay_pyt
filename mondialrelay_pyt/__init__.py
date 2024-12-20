@@ -22,5 +22,5 @@
 #
 ##############################################################################
 
-from mondialrelay_pyt import MRWebService
+from .mondialrelay_pyt import make_shipping_label
 

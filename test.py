@@ -1,23 +1,29 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from mondialrelay_pyt import MRWebService
+import collections
+from mondialrelay_pyt import make_shipping_label
 
-connexion = MRWebService("PrivateK")
+with open("api_pw.token") as f:
+            api_pw=f.read().strip('\n')
 
-dico = {
-    "Context": {
+dico = collections.OrderedDict()
+
+dico["Context"] = {
         "Login": "BDTEST@business-api.mondialrelay.com",
-        "Password": "xxxxx",
+        "Password": api_pw,
         "CustomerId": "BDTEST",
         "Culture": "fr-FR",
         "VersionAPI": "1.0",
-    },
-    "OutputOptions": {
+    }
+
+
+dico["OutputOptions"] = {
         "OutputFormat": "10x15",
         "OutputType": "PdfUrl",
-    },
-    "Shipment": {
+    }
+
+dico["Shipment"] = {
         "ORderNo": "test01",
         "CustomerNo": "cust01",
         "ParcelCount": 1,
@@ -34,8 +40,9 @@ dico = {
             },
         },
         "DeliveryInstruction": "door code : 0000",
-    },
-    "Address": {
+    }
+
+dico["Address"] = {
         "StreetName": "rue des acacias",
         "HouseNo": 3,
         "CountryCode": "FR",
@@ -46,8 +53,8 @@ dico = {
         # "AdressAdd3": "",
         "PhoneNo": "0033612345678",
         "email": "jeanmichmuch@email.com"
-    },
-}
+    }
+
 
 
 dico_old = {
@@ -117,7 +124,6 @@ format=A4&amp;crc=9579B14BCF9FA5B894A27A952DD90CC7</URL_Etiquette>\
 </WSI2_CreationEtiquetteResult></WSI2_CreationEtiquetteResponse></soap:Body></soap:Envelope>'
 
 
-
-reqst = connexion.make_shipping_label(dico)
+reqst = make_shipping_label(dico)
 
 print (reqst)

@@ -37,6 +37,7 @@ __version__ = "0.1.0"
 __date__ = "2012-12-06"
 
 from unidecode import unidecode # Debian package python-unidecode
+from dict2xml import dict2xml
 
 
 #-----------------------------------------#
@@ -55,7 +56,9 @@ import collections
 #               CONSTANTS                 #
 #-----------------------------------------#
 
-HOST= 'api.mondialrelay.com'
+# HOST= 'api.mondialrelay.com'
+HOST= 'connect-api-sandbox.mondialrelay.com'
+# HOST= 'connect-api.mondialrelay.com'
 ENCODE = b'<?xml version="1.0" encoding="utf-8"?>'
 
 #TODO add error code after the regex to use it in the raise
@@ -207,206 +210,197 @@ API_ERRORS_MESSAGE = {
 #       Mondial Relay WEBService           #
 #        WSI2_CreationEtiquette            #
 #------------------------------------------#
+def valid_dict(dico):
+    """ Get a dictionnary, check if all required fields are provided"""
 
-class MRWebService(object):
+    mandatory_keys = {
+        "Context": ["Login", "Password", "CustomerId", "Culture", "VersionAPI"],
+        "OutputOptions": ["OutputFormat", "OutputType"],
+        "Shipment": ["ParcelCount", "DeliveryMode", "CollectionMode", "Parcel"],
+        "Address": ["StreetName", "Postcode", "City", "AddressAdd1"],
+    }
 
-    def __init__(self, security_key):
-        self.security_key = security_key
-
-    def valid_dict(self, dico):
-        """ Get a dictionnary, check if all required fields are provided"""
-
-        mandatory_keys = {
-            "Context": ["Login", "Password", "CustomerId", "Culture", "VersionAPI"],
-            "OutputOptions": ["OutputFormat", "OutputType"],
-            "Shipment": ["ParcelCount", "DeliveryMode", "CollectionMode", "Parcel"],
-            "Address": ["StreetName", "Postcode", "City", "AddressAdd1"],
-        }
-
-        for key, subkeys in mandatory_keys.items():
-            if key not in dico:
-                raise Exception(f"Mandatory key {key} not given in the dictionnary")
-            
-            for mandatory_subkey in subkeys:
-                if mandatory_subkey not in dico[key]:
-                    raise Exception(f"Mandatory key {key}.{mandatory_subkey} not given in the dictionnary")
-
-        if "Mode" not in dico["DeliveryMode"]:
-            raise Exception(f"Mandatory key DeliveryMode.Mode not given in the dictionnary")
-
-        if dico["DeliveryMode"]["Mode"] == "24R" or dico["DeliveryMode"]["Mode"] == "24L":
-            if "Location" not in dico["DeliveryMode"]:
-                raise Exception(f"Mandatory key DeliveryMode.Location not given in the dictionnary")
-
-        if "Value" not in dico["Shipment"]["Parcel"]["Weight"]:
-            raise Exception(f"Mandatory key Shipment.Parcel.Weight not given in the dictionnary")
-
-
-    #------------------------------------#
-    #      functions to clean the xml    #
-    #------------------------------------#
-
-    def clean_xmlrequest(self, xml_string):
-        ''' [XML REQUEST]
-        Ugly hardcode to get ride of specifics headers declarations or namespaces instances.
-        Used in the xml before sending the request.
-        See http://lxml.de/tutorial.html#namespaces or http://effbot.org/zone/element-namespaces.htm
-        to improve the library and manage namespaces properly '''
-
-        env=b'<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'+b' xmlns:xsd="http://www.w3.org/2001/XMLSchema"'+b' xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">'
-        wsietiq=b'<WSI2_CreationEtiquette xmlns="http://www.mondialrelay.fr/webservice/">'
-
-        str1 = xml_string.replace(b'soapBody',b'soap:Body').replace(b'soapEnvelope',b'soap:Envelope')
-        str2 = str1.replace(b'<soap:Envelope>',env)
-        str3 = str2.replace(b'<WSI2_CreationEtiquette>',wsietiq)
-
-        return str3
-
-    def clean_xmlresponse(self, xml_string):
-        ''' [XML RESPONSE]
-        Ugly hardcode to get ride of specifics headers declarations or namespaces instances.
-        Used in the xml after receiving the response.
-        See http://lxml.de/tutorial.html#namespaces or http://effbot.org/zone/element-namespaces.htm
-        to improve the library and manage namespaces properly '''
-
-        head = b' xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"'
-        env = b'soap:Envelope'
-        body= b'soap:Body'
-        xmlns=b' xmlns="http://www.mondialrelay.fr/webservice/"'
-
-        str1 = xml_string.replace(head,b'').replace(env,b'soapEnvelope').replace(body,b'soapBody').replace(xmlns,b'')
-        str2 = str1.replace(ENCODE,b'')
-
-        return str2
-
-    #------------------------------------#
-    #    functions to manage the xml     #
-    #------------------------------------#
-
-    def create_xmlrequest(self, vals):
-        '''[XML REQUEST]
-        Creates an xml tree fitted to the soap request to WSI2_CreationEtiquette,
-        from the given dictionnary. All dictionnary's keys must correspond to a field to pass.
-
-        IN = Dictionnary
-        OUT = XML (as an utf-8 encoded string) ready to send a request '''
-
-        #check if the given dictionnary is correct to make an xml
-        MRWebService.valid_dict(self, vals)
-
-        #initialisation of future md5key
-        security = ""
-
-        # beginning of the xml tree, to be modified later with soapclean_xml()
-        envl = etree.Element('soapEnvelope')
-        body = etree.SubElement(envl, 'soapBody')
-        wsi2_crea = etree.SubElement(body,'WSI2_CreationEtiquette')
-
-        # xml elements creation
-        for key in MR_KEYS:
-           if key != 'Texte':
-                xml_element = etree.SubElement(wsi2_crea,key)
-                xml_element.text = vals.get(key, '')
-                security += vals.get(key,'')
-
-        # generates <Security/> xml element
-        security+=self.security_key
-        md5secu = md5(security.encode('utf-8')).hexdigest().upper()
-
-        xml_security = etree.SubElement(wsi2_crea, "Security" )
-        xml_security.text = md5secu
-
-        # add <Text/> last xml element if present, not included in security key
-        if 'Texte' in vals:
-            xml_element = etree.SubElement(wsi2_crea,"Texte")
-            xml_element.text = vals['Texte']
-
-        # generates and modifies the xml tree to obtain an apropriate xml soap string
-        xmltostring = etree.tostring(envl, encoding='utf-8', pretty_print=True)
-        xmlrequest = MRWebService.clean_xmlrequest(self,xmltostring)
-        return xmlrequest
-
-    def sendsoaprequest(self, xml_string, store):
-        ''' Send the POST request to the Web Service.
-        IN = proper xml-string
-        OUT = response from the Web Service, in an xml-string utf-8'''
-
-        header = {
-            'POST': '/Web_Services.asmx',
-            'Host': HOST,
-            'Content-Type': 'text/xml',
-            'charset': 'utf-8',
-            'Content-Lenght': 'Lenght',
-            'SOAPAction': 'http://www.mondialrelay.fr/webservice/WSI2_CreationEtiquette',
-        }
+    for key, subkeys in mandatory_keys.items():
+        if key not in dico:
+            raise Exception(f"Mandatory key {key} not given in the dictionnary")
         
-        url="https://api.mondialrelay.com/Web_Services.asmx"
-        response=requests.post(url,headers=header, data=xml_string, auth=(store,self.security_key))
+        for mandatory_subkey in subkeys:
+            if mandatory_subkey not in dico[key]:
+                raise Exception(f"Mandatory key {key}.{mandatory_subkey} not given in the dictionnary")
 
-        return response.content
+    if "Mode" not in dico["DeliveryMode"]:
+        raise Exception(f"Mandatory key DeliveryMode.Mode not given in the dictionnary")
 
-    def parsexmlresponse(self,soap_response):
-        ''' Parse the response given by the WebService.
-        Extract and returns all fields' datas.
-        IN = xml-string utf-8 returned by Mondial Relay
-        OUT : Dictionnary or Error'''
+    if dico["DeliveryMode"]["Mode"] == "24R" or dico["DeliveryMode"]["Mode"] == "24L":
+        if "Location" not in dico["DeliveryMode"]:
+            raise Exception(f"Mandatory key DeliveryMode.Location not given in the dictionnary")
 
-        strresp = soap_response
-        strresp = strresp.replace(ENCODE,b'')
-        tree= etree.fromstring(strresp)
-        string = etree.tostring(tree, pretty_print=True, encoding='utf-8')
+    if "Value" not in dico["Shipment"]["Parcel"]["Weight"]:
+        raise Exception(f"Mandatory key Shipment.Parcel.Weight not given in the dictionnary")
 
-        response =  MRWebService.clean_xmlresponse(self, soap_response)
-        soapEnvelope = objectify.fromstring(response)
 
-        #---------------Parsing---------------#
-        stat = soapEnvelope.soapBody.WSI2_CreationEtiquetteResponse.WSI2_CreationEtiquetteResult.STAT
+#------------------------------------#
+#      functions to clean the xml    #
+#------------------------------------#
 
-        if stat == 0:
-            NumExpe = soapEnvelope.soapBody.WSI2_CreationEtiquetteResponse.WSI2_CreationEtiquetteResult.ExpeditionNum
-            urlpdf = 'https://' + HOST.replace('api', 'www') + str(soapEnvelope.soapBody.WSI2_CreationEtiquetteResponse.WSI2_CreationEtiquetteResult.URL_Etiquette)
-            resultat={'STAT':stat,'ExpeditionNum':NumExpe,'URL_Etiquette':urlpdf}
-        else:
-            resultat={'STAT':stat}
-            explanation = API_ERRORS_MESSAGE.get(stat)
-            raise Exception('The server returned %s . The mondial relay documentation says %s' % (stat,explanation))
+def clean_xmlrequest(xml_string):
+    ''' [XML REQUEST]
+    Ugly hardcode to get ride of specifics headers declarations or namespaces instances.
+    Used in the xml before sending the request.
+    See http://lxml.de/tutorial.html#namespaces or http://effbot.org/zone/element-namespaces.htm
+    to improve the library and manage namespaces properly '''
 
-        return resultat
-        #TOFIX ?
-        return True
+    env='<ShipmentCreationRequest xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.example.org/Request">'
+    
+    return xml_string.replace('<ShipmentCreationRequest>',env)
 
-    #------------------------------------#
-    #       FUNCTION TO CALL             #
-    #------------------------------------#
-    def make_shipping_label(self, dictionnary, labelformat="A4"):
-        ''' FUNCTION TO CALL TO GET DATAS WANTED FROM THE WEB SERVICE
-        IN = Dictionnary with corresponding keys (see MR_Keys or Mondial Relay's Documentation)
-        OUT = Raise an error with indications (see MR Doc for numbers correspondances)
-        or Expedition Number and URL to PDF'''
+# def clean_xmlresponse(self, xml_string):
+#     ''' [XML RESPONSE]
+#     Ugly hardcode to get ride of specifics headers declarations or namespaces instances.
+#     Used in the xml after receiving the response.
+#     See http://lxml.de/tutorial.html#namespaces or http://effbot.org/zone/element-namespaces.htm
+#     to improve the library and manage namespaces properly '''
 
-        #MondialRelay api required only ascii in uppercase
-        for key in dictionnary:
-            dictionnary[key] = unidecode(dictionnary[key]).upper()
+#     head = b' xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"'
+#     env = b'soap:Envelope'
+#     body= b'soap:Body'
+#     xmlns=b' xmlns="http://www.mondialrelay.fr/webservice/"'
 
-        xmlstring = MRWebService.create_xmlrequest(self, dictionnary)
+#     str1 = xml_string.replace(head,b'').replace(env,b'soapEnvelope').replace(body,b'soapBody').replace(xmlns,b'')
+#     str2 = str1.replace(ENCODE,b'')
 
-        storename=dictionnary['Enseigne']
-        resp = MRWebService.sendsoaprequest(self,xmlstring, storename)
+#     return str2
 
-        result = MRWebService.parsexmlresponse(self,resp)
-        url = result['URL_Etiquette']
+#------------------------------------#
+#    functions to manage the xml     #
+#------------------------------------#
 
-        #switch url if default format is not A4
-        if labelformat == 'A5':
-            url = url.replace('format=A4','format=A5')
-        if labelformat == '10x15':
-            url = url.replace('format=A4','format=10x15')
+# def create_xmlrequest(vals):
+#     '''[XML REQUEST]
+#     Creates an xml tree fitted to the soap request to WSI2_CreationEtiquette,
+#     from the given dictionnary. All dictionnary's keys must correspond to a field to pass.
 
-        final = {
-                'ExpeditionNum': result['ExpeditionNum'],
-                'URL_Etiquette': url,
-                'format':labelformat,
-                }
+#     IN = Dictionnary
+#     OUT = XML (as an utf-8 encoded string) ready to send a request '''
 
-        return final
+#     #check if the given dictionnary is correct to make an xml
+#     valid_dict(vals)
+
+#     #initialisation of future md5key
+#     security = ""
+
+#     # beginning of the xml tree, to be modified later with soapclean_xml()
+#     envl = etree.Element('soapEnvelope')
+#     body = etree.SubElement(envl, 'soapBody')
+#     wsi2_crea = etree.SubElement(body,'WSI2_CreationEtiquette')
+
+#     # xml elements creation
+#     for key in MR_KEYS:
+#         if key != 'Texte':
+#             xml_element = etree.SubElement(wsi2_crea,key)
+#             xml_element.text = vals.get(key, '')
+#             security += vals.get(key,'')
+
+#     # generates <Security/> xml element
+#     # security+=self.security_key
+#     # md5secu = md5(security.encode('utf-8')).hexdigest().upper()
+
+#     # xml_security = etree.SubElement(wsi2_crea, "Security" )
+#     # xml_security.text = md5secu
+
+#     # add <Text/> last xml element if present, not included in security key
+#     if 'Texte' in vals:
+#         xml_element = etree.SubElement(wsi2_crea,"Texte")
+#         xml_element.text = vals['Texte']
+
+#     # generates and modifies the xml tree to obtain an apropriate xml soap string
+#     xmltostring = etree.tostring(envl, encoding='utf-8', pretty_print=True)
+#     xmlrequest = clean_xmlrequest(xmltostring)
+#     return xmlrequest
+
+def sendxmlrequest(xml_string):
+    ''' Send the POST request to the Web Service.
+    IN = proper xml-string
+    OUT = response from the Web Service, in an xml-string utf-8'''
+
+    header = {
+        'Content-Type': 'text/xml',
+        'charset': 'utf-8',
+        'Accept': 'application/xml',
+    }
+    
+    url="https://" + HOST + "/api/shipment"
+    response=requests.post(url,headers=header, data=xml_string)
+
+    return response.content
+
+# def parsexmlresponse(soap_response):
+#     ''' Parse the response given by the WebService.
+#     Extract and returns all fields' datas.
+#     IN = xml-string utf-8 returned by Mondial Relay
+#     OUT : Dictionnary or Error'''
+
+#     strresp = soap_response
+#     strresp = strresp.replace(ENCODE,b'')
+#     tree= etree.fromstring(strresp)
+#     string = etree.tostring(tree, pretty_print=True, encoding='utf-8')
+
+#     response =  clean_xmlresponse(soap_response)
+#     soapEnvelope = objectify.fromstring(response)
+
+#     #---------------Parsing---------------#
+#     stat = soapEnvelope.soapBody.WSI2_CreationEtiquetteResponse.WSI2_CreationEtiquetteResult.STAT
+
+#     if stat == 0:
+#         NumExpe = soapEnvelope.soapBody.WSI2_CreationEtiquetteResponse.WSI2_CreationEtiquetteResult.ExpeditionNum
+#         urlpdf = 'https://' + HOST.replace('api', 'www') + str(soapEnvelope.soapBody.WSI2_CreationEtiquetteResponse.WSI2_CreationEtiquetteResult.URL_Etiquette)
+#         resultat={'STAT':stat,'ExpeditionNum':NumExpe,'URL_Etiquette':urlpdf}
+#     else:
+#         resultat={'STAT':stat}
+#         explanation = API_ERRORS_MESSAGE.get(stat)
+#         raise Exception('The server returned %s . The mondial relay documentation says %s' % (stat,explanation))
+
+#     return resultat
+#     #TOFIX ?
+#     return True
+
+#------------------------------------#
+#       FUNCTION TO CALL             #
+#------------------------------------#
+def make_shipping_label(dictionnary, labelformat="A4"):
+    ''' FUNCTION TO CALL TO GET DATAS WANTED FROM THE WEB SERVICE
+    IN = Dictionnary with corresponding keys (see MR_Keys or Mondial Relay's Documentation)
+    OUT = Raise an error with indications (see MR Doc for numbers correspondances)
+    or Expedition Number and URL to PDF'''
+
+    #MondialRelay api required only ascii in uppercase
+    # for key in dictionnary:
+    #     dictionnary[key] = unidecode(dictionnary[key]).upper()
+
+    xmlstring = dict2xml(dictionnary, wrap ='ShipmentCreationRequest')
+
+    xmlstring = clean_xmlrequest(xmlstring)
+
+    print(xmlstring)
+
+    resp = sendxmlrequest(xmlstring)
+
+    print (resp)
+
+    # result = MRWebService.parsexmlresponse(self,resp)
+    # url = result['URL_Etiquette']
+
+    # #switch url if default format is not A4
+    # if labelformat == 'A5':
+    #     url = url.replace('format=A4','format=A5')
+    # if labelformat == '10x15':
+    #     url = url.replace('format=A4','format=10x15')
+
+    # final = {
+    #         'ExpeditionNum': result['ExpeditionNum'],
+    #         'URL_Etiquette': url,
+    #         'format':labelformat,
+    #         }
+
+    # return final
 
