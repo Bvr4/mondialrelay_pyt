@@ -6,6 +6,51 @@ from mondialrelay_pyt import MRWebService
 connexion = MRWebService("PrivateK")
 
 dico = {
+    "Context": {
+        "Login": "BDTEST@business-api.mondialrelay.com",
+        "Password": "xxxxx",
+        "CustomerId": "BDTEST",
+        "Culture": "fr-FR",
+        "VersionAPI": "1.0",
+    },
+    "OutputOptions": {
+        "OutputFormat": "10x15",
+        "OutputType": "PdfUrl",
+    },
+    "Shipment": {
+        "ORderNo": "test01",
+        "CustomerNo": "cust01",
+        "ParcelCount": 1,
+        "DeliveryMode": {
+            "mode": "24R",
+            "location": "78857",            
+        },
+        "CollectionMode": {
+            "mode": "REL",            
+        },
+        "Parcel": {
+            "weight": {
+                "Value": 350,
+            },
+        },
+        "DeliveryInstruction": "door code : 0000",
+    },
+    "Address": {
+        "StreetName": "rue des acacias",
+        "HouseNo": 3,
+        "CountryCode": "FR",
+        "Postcode": "14000",
+        "City": "Caen",
+        "AdressAdd1": "Jean Michmuch",
+        # "AdressAdd2": "",
+        # "AdressAdd3": "",
+        "PhoneNo": "0033612345678",
+        "email": "jeanmichmuch@email.com"
+    },
+}
+
+
+dico_old = {
         'Enseigne':'BDTEST13',
         'ModeCol':'CCC',
         'ModeLiv':'LCC',
