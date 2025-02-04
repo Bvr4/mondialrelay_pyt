@@ -1,60 +1,78 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import collections
 from mondialrelay_pyt import make_shipping_label
 
 with open("api_pw.token") as f:
             api_pw=f.read().strip('\n')
 
-dico = collections.OrderedDict()
-
-dico["Context"] = {
-        "Login": "BDTEST@business-api.mondialrelay.com",
-        "Password": api_pw,
-        "CustomerId": "BDTEST",
-        "Culture": "fr-FR",
-        "VersionAPI": "1.0",
-    }
-
-
-dico["OutputOptions"] = {
-        "OutputFormat": "10x15",
-        "OutputType": "PdfUrl",
-    }
-
-dico["Shipment"] = {
-        "ORderNo": "test01",
-        "CustomerNo": "cust01",
-        "ParcelCount": 1,
-        "DeliveryMode": {
-            "Mode": "24R",
-            "Location": "78857",            
+dico = {
+    "ShipmentCreationRequest": {
+        "Context": {
+            "Login": "BDTEST@business-api.mondialrelay.com",
+            "Password": api_pw,
+            "CustomerId": "BDTEST",
+            "Culture": "fr-FR",
+            "VersionAPI": "1.0",
         },
-        "CollectionMode": {
-            "Mode": "REL",            
+        "OutputOptions": {
+            "OutputFormat": "10x15",
+            "OutputType": "PdfUrl",
         },
-        "Parcel": {
-            "Weight": {
-                "Value": 350,
+        "ShipmentsList": {
+            "Shipment": {
+                "ORderNo": "test01",
+                "CustomerNo": "cust01",
+                "ParcelCount": 1,
+                "DeliveryMode": {   
+                    "@Mode": "24R",
+                    "@Location": "FR-33105",            
+                },
+                "CollectionMode": {
+                    "@Mode": "REL",            
+                },
+                "Parcels": {                       
+                    "Parcel": {
+                        "Weight": {
+                            "@Value": 350,
+                            "@Unit": "gr"
+                        },
+                    },
+                },
+                "DeliveryInstruction": "door code : 0000",
+            
+                "Sender": {
+                    "Address": {
+                        # "StreetName": "rue des Ajoncs",
+                        # "HouseNo": 21,
+                        "CountryCode": "FR",
+                        "Postcode": "59000",
+                        "City": "Lille",
+                        "AddressAdd1": "Jean Voimoncolis",
+                        # "AdressAdd2": "",
+                        "AdressAdd3": "21 rue des Ajoncs",
+                        "PhoneNo": "+33687654321",
+                        "email": "jv@email.com",
+                    },
+                },    
+                "Recipient": {
+                    "Address": {
+                        # "StreetName": "rue des acacias",
+                        # "HouseNo": 3,
+                        "CountryCode": "FR",
+                        "Postcode": "14000",
+                        "City": "Caen",
+                        "AddressAdd1": "Jean Michmuch",
+                        # "AdressAdd2": "",
+                        "AdressAdd3": "3 rue des Acacias",
+                        "PhoneNo": "0033612345678",
+                        "email": "jeanmichmuch@email.com",
+                    },
+                },
             },
         },
-        "DeliveryInstruction": "door code : 0000",
-    }
-
-dico["Address"] = {
-        "StreetName": "rue des acacias",
-        "HouseNo": 3,
-        "CountryCode": "FR",
-        "Postcode": "14000",
-        "City": "Caen",
-        "AddressAdd1": "Jean Michmuch",
-        # "AdressAdd2": "",
-        # "AdressAdd3": "",
-        "PhoneNo": "0033612345678",
-        "email": "jeanmichmuch@email.com"
-    }
-
+    },
+}
 
 
 dico_old = {

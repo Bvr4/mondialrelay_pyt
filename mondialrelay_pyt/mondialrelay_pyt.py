@@ -37,7 +37,6 @@ __version__ = "0.1.0"
 __date__ = "2012-12-06"
 
 from unidecode import unidecode # Debian package python-unidecode
-from dict2xml import dict2xml
 
 
 #-----------------------------------------#
@@ -50,13 +49,15 @@ from requests.auth import HTTPBasicAuth
 import requests
 import re
 import collections
+import xmltodict
+
+import json # pour tests (!)
 
 
 #-----------------------------------------#
 #               CONSTANTS                 #
 #-----------------------------------------#
 
-# HOST= 'api.mondialrelay.com'
 HOST= 'connect-api-sandbox.mondialrelay.com'
 # HOST= 'connect-api.mondialrelay.com'
 ENCODE = b'<?xml version="1.0" encoding="utf-8"?>'
@@ -377,7 +378,8 @@ def make_shipping_label(dictionnary, labelformat="A4"):
     # for key in dictionnary:
     #     dictionnary[key] = unidecode(dictionnary[key]).upper()
 
-    xmlstring = dict2xml(dictionnary, wrap ='ShipmentCreationRequest')
+    # xmlstring = dicttoxml(dictionnary, custom_root='ShipmentCreationRequest', attr_type=False, return_bytes=False)
+    xmlstring = xmltodict.unparse(dictionnary, pretty=True)
 
     xmlstring = clean_xmlrequest(xmlstring)
 
@@ -387,8 +389,14 @@ def make_shipping_label(dictionnary, labelformat="A4"):
 
     print (resp)
 
-    # result = MRWebService.parsexmlresponse(self,resp)
-    # url = result['URL_Etiquette']
+    result = xmltodict.parse(resp, process_namespaces=True, namespaces={'http://www.example.org/Response': None})
+
+    print(json.dumps(result["ShipmentCreationResponse"]["ShipmentsList"]["Shipment"], indent=4))
+
+
+    url = result["ShipmentCreationResponse"]["ShipmentsList"]["Shipment"]["LabelList"]["Label"]["Output"]
+
+    return url
 
     # #switch url if default format is not A4
     # if labelformat == 'A5':
