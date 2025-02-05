@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 ##############################################################################
 #
 #    mondialrelaiy_pyt
@@ -22,5 +20,5 @@
 #
 ##############################################################################
 
-from mondialrelay_pyt import MRWebService
+from .mondialrelay_pyt import make_shipping_label
 

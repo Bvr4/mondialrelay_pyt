@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 ##############################################################################
 #
 #    mondialrelaiy_pyt
@@ -22,403 +20,282 @@
 #
 ##############################################################################
 """
-
     mondialrelay_pyt is a Python library made to interact with
-    the Mondial Relay's Web Service API : WSI2_CreationEtiquette
-    (http://www.mondialrelay.fr/webservice/WSI2_CreationEtiquette)
+    the Mondial Relay's Web Service API V2: WEB SERVICE DUAL CARRIER
+    (https://connect-api.mondialrelay.com/api/shipment)
 
     It takes a dictionnary of values required and the format of label wanted
     and gives the tracking number, and the url to donwload the label in pdf.
 
 """
 
-__author__ = "Sébastien BEAU / Aymeric LECOMTE"
-__version__ = "0.1.0"
-__date__ = "2012-12-06"
-
-from unidecode import unidecode # Debian package python-unidecode
+__author__ = "Sébastien BEAU / Aymeric LECOMTE / Henri DEWILDE"
+__version__ = "0.2.1"
+__date__ = "2025-02-05"
 
 
 #-----------------------------------------#
 #               LIBRARIES                 #
 #-----------------------------------------#
 
-from lxml import etree, objectify
-from hashlib import md5
-from requests.auth import HTTPBasicAuth
 import requests
-import re
-import collections
+import xmltodict
 
 
 #-----------------------------------------#
 #               CONSTANTS                 #
 #-----------------------------------------#
 
-HOST= 'api.mondialrelay.com'
+# HOST= 'connect-api-sandbox.mondialrelay.com'
+HOST= 'connect-api.mondialrelay.com'
 ENCODE = b'<?xml version="1.0" encoding="utf-8"?>'
 
 #TODO add error code after the regex to use it in the raise
 #('Enseigne',{"^[0-9A-Z]{2}[0-9A-Z]{6}$" : 30}),
-MR_KEYS = collections.OrderedDict([
-    ('Enseigne',"^[0-9A-Z]{2}[0-9A-Z]{6}$"),
-    ('ModeCol',"^(CCC|CDR|CDS|REL)$"),
-    ('ModeLiv',"^(LCC|LD1|LDS|24R|ESP|DRI)$"),
-    ('NDossier',"^(|[0-9A-Z_ -]{0,15})$"),
-    ('NClient',"^(|[0-9A-Z]{0,9})$"),
-    ('Expe_Langage',"^[A-Z]{2}$"),
-    ('Expe_Ad1',"^.{2,32}$"),
-    ('Expe_Ad2',"^.{0,32}$"),
-    ('Expe_Ad3',"^.{2,32}$"),
-    ('Expe_Ad4',"^.{0,32}$"),
-    ('Expe_Ville',"^[A-Z_\-' ]{2,26}$"),
-    ('Expe_CP',"^[0-9]{5}$"),
-    ('Expe_Pays',"^[A-Z]{2}$"),
-    ('Expe_Tel1',"^((00|\+)33|0)[0-9][0-9]{8}$"),
-    ('Expe_Tel2',"^((00|\+)33|0)[0-9][0-9]{8}$"),
-    ('Expe_Mail',"^[\w\-\.\@_]{7,70}$"),
-    ('Dest_Langage',"^[A-Z]{2}$"),
-    ('Dest_Ad1',"^.{2,32}$"),
-    ('Dest_Ad2',"^.{0,32}$"),
-    ('Dest_Ad3',"^.{2,32}$"),
-    ('Dest_Ad4',"^.{0,32}$"),
-    ('Dest_Ville',"^[0-9A-Z_\-'., /]{0,32}$"),
-    ('Dest_CP',"^[0-9]{5}$"),
-    ('Dest_Pays',"^[A-Z]{2}$"),
-    ('Dest_Tel1',"^((00|\+)33|0)[0-9][0-9]{8}$"),
-    ('Dest_Tel2',"^((00|\+)33|0)[0-9][0-9]{8}$"),
-    ('Dest_Mail',"^[\w\-\.\@_]{7,70}$"),
-    ('Poids',"^[0-9]{3,7}$"),
-    ('Longueur',"^[0-9]{0,3}$"),
-    ('Taille',"^{0}$"),
-    ('NbColis',"^[0-9]{1,2}$"),
-    ('CRT_Valeur',"^[0-9]{1,7}$"),
-    ('CRT_Devise',"^(|EUR)$"),
-    ('EXP_Valeur',"^[0-9]{0,7}$"),
-    ('EXP_Devise',"^(|EUR)$"),
-    ('COL_Rel_Pays',"^[A-Z]{2}$"),
-    ('COL_Rel',"^(|[0-9]{6})$"),
-    ('LIV_Rel_Pays',"^[A-Z]{2}$"),
-    ('LIV_Rel',"^(|[0-9]{6})$"),
-    ('TAvisage',"^(|O|N)$"),
-    ('TReprise',"^(|O|N)$"),
-    ('Montage',"^(|[0-9]{1,3})$"),
-    ('TRDV',"^(|O|N)$"),
-    ('Assurance',"^(|[0-9A-Z]{1})$"),
-    ('Instructions',"^[0-9A-Z_\-'., /]{0,31}"),
-    ('Texte',"^([^<>&']{3,30})(\(cr\)[^<>&']{0,30})")
-    ])
 
-API_ERRORS_MESSAGE = {
-    1 : u"Enseigne invalide",
-    2 : u"Numéro d'enseigne vide ou inexistant",
-    3 : u"Numéro de compte enseigne invalide",
-    5 : u"Numéro de dossier enseigne invalide",
-    7 : u"Numéro de client enseigne invalide",
-    8 : u"Mot de passe ou hachage invalide",
-    9 : u"Ville non reconnu ou non unique",
-    10 : u"Type de collecte invalide",
-    11 : u"Numéro de Relais de Collecte invalide",
-    12 : u"Pays de Relais de collecte invalide",
-    13 : u"Type de livraison invalide",
-    14 : u"Numéro de Relais de livraison invalide",
-    15 : u"Pays de Relais de livraison invalide",
-    20 : u"Poids du colis invalide",
-    21 : u"Taille (Longueur + Hauteur) du colis invalide",
-    22 : u"Taille du Colis invalide",
-    24 : u"Numéro d'expédition ou de suivi invalide",
-    26 : u"Temps de montage invalide",
-    27 : u"Mode de collecte ou de livraison invalide",
-    28 : u"Mode de collecte invalide",
-    29 : u"Mode de livraison invalide",
-    30 : u"Adresse (L1) invalide",
-    31 : u"Adresse (L2) invalide",
-    33 : u"Adresse (L3) invalide",
-    34 : u"Adresse (L4) invalide",
-    35 : u"Ville invalide",
-    36 : u"Code postal invalide",
-    37 : u"Pays invalide",
-    38 : u"Numéro de téléphone invalide, modifier le numéro sur l'adresse de l'expédition (il peut manquer un '+')",
-    39 : u"Adresse e-mail invalide",
-    40 : u"Paramètres manquants",
-    42 : u"Montant CRT invalide",
-    43 : u"Devise CRT invalide",
-    44 : u"Valeur du colis invalide",
-    45 : u"Devise de la valeur du colis invalide",
-    46 : u"Plage de numéro d'expédition épuisée",
-    47 : u"Nombre de colis invalide",
-    48 : u"Multi-Colis Relais Interdit",
-    49 : u"Action invalide",
-    60 : u"Champ texte libre invalide (Ce code erreur n'est pas invalidant)",
-    61 : u"Top avisage invalide",
-    62 : u"Instruction de livraison invalide",
-    63 : u"Assurance invalide",
-    64 : u"Temps de montage invalide",
-    65 : u"Top rendez-vous invalide",
-    66 : u"Top reprise invalide",
-    67 : u"Latitude invalide",
-    68 : u"Longitude invalide",
-    69 : u"Code Enseigne invalide",
-    70 : u"Numéro de Point Relais invalide",
-    71 : u"Nature de point de vente non valide",
-    74 : u"Langue invalide",
-    78 : u"Pays de Collecte invalide",
-    79 : u"Pays de Livraison invalide",
-    80 : u"Code tracing : Colis enregistré",
-    81 : u"Code tracing : Colis en traitement chez Mondial Relay",
-    82 : u"Code tracing : Colis livré",
-    83 : u"Code tracing : Anomalie",
-    84 : u"(Réservé Code Tracing)",
-    85 : u"(Réservé Code Tracing)",
-    86 : u"(Réservé Code Tracing)",
-    87 : u"(Réservé Code Tracing)",
-    88 : u"(Réservé Code Tracing)",
-    89 : u"(Réservé Code Tracing)",
-    93 : u"Aucun élément retourné par le plan de tri Si vous effectuez une "
-        u"collecte ou une livraison en Point Relais, vérifiez que les Point "
-        u"Relaissont bien disponibles. Si vous effectuez une livraison à domicile, "
-        u"il est probable que le codepostal que vous avez indiquez n'existe pas.",
-    94 : u"Colis Inexistant",
-    95 : u"Compte Enseigne non activé",
-    96 : u"Type d'enseigne incorrect en Base",
-    97 : u"Clé de sécurité invalide Cf. : § « Génération de la clé de sécurité »",
-    98 : u"Erreur générique (Paramètres invalides) Cette erreur masque une autre "
-        u"erreur de la liste et ne peut se produire que dans le cas où le "
-        u"compte utilisé est en mode « Production »."
-        u" Cf. : § « Fonctionnement normal et debugage »",
-    99 : u"Erreur générique du service Cette erreur peut être dû à un problème "
-        u"technique du service. Veuillez notifier cette erreur à Mondial Relay en "
-        u"précisant la date et l'heure de la requête ainsi que les paramètres "
-        u"envoyés afin d'effectuer une vérification.",
+MR_KEYS = {
+    "Login": "",
+    "Password": "",
+    "CustomerId": "^[0-9A-Z]{2}[0-9A-Z ]{6}$",
+    "Culture": "^[a-z]{2}-[A-Z]{2}$",
+    "OutputFormat": "^(10x15|A4|A5)$",
+    "OrderNo": "^(|[0-9A-Z_-]{0,15})$",
+    "CustomerNo": "^(|[0-9A-Z]{0,9})$",
+    "DeliveryMode": "^(LCC|HOM|HOC|LD1|LDS|24R|24L|HOX)$",
+    "DeliveryLocation": "^[0-9A-Z]{0,10}$",
+    "CollectionMode": "^(CCC|CDR|CDS|REL)$",
+    "ParcelWeight": "^[0-9]{0,10}$",
+    "SenderStreetname": "^[0-9A-Z_\-'., /]{0,30}$",
+    "SenderHouseNo": "^[0-9A-Z_\-'., /]{0,10}$",
+    "SenderCountryCode": "^[A-Z]{2}$",
+    "SenderPostCode": "^[A-Za-z_\-' ]{2,25}$",
+    "SenderCity": "^[A-Za-z_\-' ]{2,30}$",
+    "SenderAddressAdd1": "^[0-9A-Z_\-'., /]{0,30}$",
+    "SenderAddressAdd2": "^[0-9A-Z_\-'., /]{0,30}$",
+    "SenderAddressAdd3": "^[0-9A-Z_\-'., /]{0,30}$",
+    "SenderPhoneNo": "^((00|\+)33|0)[0-9][0-9]{8}$",
+    "SenderEmail": "^[\w\-\.\@_]{7,70}$",
+    "RecipientStreetname": "^[0-9A-Z_\-'., /]{0,30}$",
+    "RecipientHouseNo": "^[0-9A-Z_\-'., /]{0,10}$",
+    "RecipientCountryCode": "^[A-Z]{2}$",
+    "RecipientPostCode": "^[A-Za-z_\-' ]{2,25}$",
+    "RecipientCity": "^[A-Za-z_\-' ]{2,30}$",
+    "RecipientAddressAdd1": "^[0-9A-Z_\-'., /]{0,30}$",
+    "RecipientAddressAdd2": "^[0-9A-Z_\-'., /]{0,30}$",
+    "RecipientAddressAdd3": "^[0-9A-Z_\-'., /]{0,30}$",
+    "RecipientPhoneNo": "^((00|\+)33|0)[0-9][0-9]{8}$",
+    "RecipientEmail": "j^[\w\-\.\@_]{7,70}$",
 }
+
 
 #------------------------------------------#
 #       Mondial Relay WEBService           #
-#        WSI2_CreationEtiquette            #
 #------------------------------------------#
+def valid_dict(input_dict):
+    """ Get a dictionnary, check if all required fields are provided.
+    Return a valid dictionnary, formated to the Mondial Relay standards.
+    """
 
-class MRWebService(object):
+    mandatory_keys = (
+        "Login", 
+        "Password", 
+        "CustomerId", 
+        "Culture", 
+        "OutputFormat",
+        "DeliveryMode", 
+        "DeliveryLocation", 
+        "CollectionMode", 
+        "ParcelWeight",
+        "SenderStreetname",
+        "SenderPostCode",
+        "SenderCity",
+        "SenderAddressAdd1",
+        "SenderCountryCode",
+        "RecipientStreetname",
+        "RecipientPostCode",
+        "RecipientCity",
+        "RecipientAddressAdd1",
+        "RecipientCountryCode",
+    )
 
-    def __init__(self, security_key):
-        self.security_key = security_key
+    optional_shipment_keys = (
+        "OrderNo",
+        "CustomerNo",
+    )
 
-    def valid_dict(self, dico):
-        ''' Get a dictionnary, check if all required fields are provided,
-        and if the values correpond to the required format.'''
+    optional_sender_keys = (
+        "SenderHouseNo",
+        "SenderAdressAdd2",
+        "SenderAdressAdd3",
+        "SenderPhoneNo",
+        "SenderEmail",
+    )
 
-        mandatory = [
-            'Enseigne',
-            'ModeCol',
-            'ModeLiv',
-            'Expe_Langage',
-            'Expe_Ad1',
-            'Expe_Ad3',
-            'Expe_Ville',
-            'Expe_CP',
-            'Expe_Pays',
-            'Expe_Tel1',
-            'Dest_Langage',
-            'Dest_Ad1',
-            'Dest_Ad3',
-            'Dest_Ville',
-            'Dest_CP',
-            'Dest_Pays',
-            'Poids',
-            'NbColis',
-            'CRT_Valeur',
-            ]
+    optional_recipient_keys = (
+        "RecipientHouseNo",
+        "RecipientAdressAdd2",
+        "RecipientAdressAdd3",
+        "RecipientPhoneNo",
+        "RecipientEmail",
+    )
+
+    for key in mandatory_keys:
+            if key not in input_dict:
+                raise Exception('Mandatory key %s not given in the dictionnary' %key)
+            
+    formated_dict = {
+        "ShipmentCreationRequest": {
+            "Context": {
+                "Login": input_dict["Login"],
+                "Password": input_dict["Password"],
+                "CustomerId": input_dict["CustomerId"],
+                "Culture": input_dict["Culture"],
+                "VersionAPI": "1.0",
+            },
+            "OutputOptions": {
+                "OutputFormat": input_dict["OutputFormat"],
+                "OutputType": "PdfUrl",
+            },
+            "ShipmentsList": {
+                "Shipment": {
+                    "ParcelCount": 1,
+                    "DeliveryMode": {   
+                        "@Mode": input_dict["DeliveryMode"],
+                        "@Location": input_dict["DeliveryLocation"],            
+                    },
+                    "CollectionMode": {
+                        "@Mode": input_dict["CollectionMode"],            
+                    },
+                    "Parcels": {                       
+                        "Parcel": {
+                            "Weight": {
+                                "@Value": input_dict["ParcelWeight"],
+                                "@Unit": "gr"
+                            },
+                        },
+                    },
+                    "Sender": {
+                        "Address": {
+                            "Streetname": input_dict["SenderStreetname"],
+                            "CountryCode": input_dict["SenderCountryCode"],
+                            "PostCode": input_dict["SenderPostCode"],
+                            "City": input_dict["SenderCity"],
+                            "AddressAdd1": input_dict["SenderAddressAdd1"],
+                        },
+                    },
+                    "Recipient": {
+                        "Address": {
+                            "Streetname": input_dict["RecipientStreetname"],
+                            "CountryCode": input_dict["RecipientCountryCode"],
+                            "PostCode": input_dict["RecipientPostCode"],
+                            "City": input_dict["RecipientCity"],
+                            "AddressAdd1": input_dict["RecipientAddressAdd1"],
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    # Check if optional keys are given
+    for input_key, input_value in input_dict.items():
+        if input_key in optional_shipment_keys:
+            formated_dict["ShipmentCreationRequest"]["ShipmentsList"]["Shipment"][input_key] = input_value
+
+        if input_key in optional_sender_keys:
+            formated_dict["ShipmentCreationRequest"]["ShipmentsList"]["Shipment"]["Sender"]["Address"][input_key] = input_value
+
+        if input_key in optional_recipient_keys:
+            formated_dict["ShipmentCreationRequest"]["ShipmentsList"]["Shipment"]["Recipient"]["Address"][input_key] = input_value
+            
+    return formated_dict
 
 
-        if ('ModeLiv' or 'ModeCol') not in dico:
-            raise Exception('The given dictionnary is not valid.')
+#------------------------------------#
+#      functions to clean the xml    #
+#------------------------------------#
 
-        for element in dico:
-            if element not in MR_KEYS:
-                raise Exception('Key %s not valid in given dictionnary' %element)
-            formt = MR_KEYS[element]
-            #if dico[element] and re.match(formt, dico[element].upper()) == None:
-            #    raise Exception('Value %s not valid in given dictionary, key %s, expected format %s' %(dico[element],element, MR_KEYS[element]))
+def clean_xmlrequest(xml_string):
+    """ [XML REQUEST]
+    Ugly hardcode to get ride of specifics headers declarations or namespaces instances.
+    Used in the xml before sending the request.
+    See http://lxml.de/tutorial.html#namespaces or http://effbot.org/zone/element-namespaces.htm
+    to improve the library and manage namespaces properly 
+    """
 
-        if dico['ModeLiv'] == "24R":
-            mandatory.insert(19,'LIV_Rel')
-            mandatory.insert(19,'LIV_Rel_Pays')
-        if dico['ModeCol'] == "REL":
-            mandatory.insert(19,'COL_Rel')
-            mandatory.insert(19,'COL_Rel_Pays')
-        if dico['ModeLiv'] == "LDS":
-            mandatory.insert(16,'Dest_Tel1')
+    env='<ShipmentCreationRequest xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.example.org/Request">'
+    
+    return xml_string.replace('<ShipmentCreationRequest>',env)
 
-        for mandatkey in mandatory:
-            if mandatkey not in dico:
-                raise Exception('Mandatory key %s not given in the dictionnary' %mandatkey)
 
-        return True
+#------------------------------------#
+#    functions to manage the xml     #
+#------------------------------------#
 
-    #------------------------------------#
-    #      functions to clean the xml    #
-    #------------------------------------#
+def sendxmlrequest(xml_string):
+    """ Send the POST request to the Web Service.
+    IN = proper xml-string
+    OUT = response from the Web Service, in an xml-string utf-8
+    """
 
-    def clean_xmlrequest(self, xml_string):
-        ''' [XML REQUEST]
-        Ugly hardcode to get ride of specifics headers declarations or namespaces instances.
-        Used in the xml before sending the request.
-        See http://lxml.de/tutorial.html#namespaces or http://effbot.org/zone/element-namespaces.htm
-        to improve the library and manage namespaces properly '''
+    header = {
+        'Content-Type': 'text/xml',
+        'charset': 'utf-8',
+        'Accept': 'application/xml',
+    }
+    
+    url="https://" + HOST + "/api/shipment"
 
-        env=b'<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'+b' xmlns:xsd="http://www.w3.org/2001/XMLSchema"'+b' xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">'
-        wsietiq=b'<WSI2_CreationEtiquette xmlns="http://www.mondialrelay.fr/webservice/">'
+    response=requests.post(url, headers=header, data=xml_string)
 
-        str1 = xml_string.replace(b'soapBody',b'soap:Body').replace(b'soapEnvelope',b'soap:Envelope')
-        str2 = str1.replace(b'<soap:Envelope>',env)
-        str3 = str2.replace(b'<WSI2_CreationEtiquette>',wsietiq)
+    return response.content
 
-        return str3
 
-    def clean_xmlresponse(self, xml_string):
-        ''' [XML RESPONSE]
-        Ugly hardcode to get ride of specifics headers declarations or namespaces instances.
-        Used in the xml after receiving the response.
-        See http://lxml.de/tutorial.html#namespaces or http://effbot.org/zone/element-namespaces.htm
-        to improve the library and manage namespaces properly '''
+def parsexmlresponse(response):
+    """ Parse the response given by the WebService.
+    Extract and returns all fields' datas.
+    IN = xml-string utf-8 returned by Mondial Relay
+    OUT : Dictionnary or Error
+    """
 
-        head = b' xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"'
-        env = b'soap:Envelope'
-        body= b'soap:Body'
-        xmlns=b' xmlns="http://www.mondialrelay.fr/webservice/"'
+    result_dict = xmltodict.parse(response, process_namespaces=True, namespaces={'http://www.example.org/Response': None})
 
-        str1 = xml_string.replace(head,b'').replace(env,b'soapEnvelope').replace(body,b'soapBody').replace(xmlns,b'')
-        str2 = str1.replace(ENCODE,b'')
+    print(result_dict)
 
-        return str2
+    # If the server retruned an error
+    if result_dict["ShipmentCreationResponse"]["StatusList"] is not None and "Status" in result_dict["ShipmentCreationResponse"]["StatusList"]:
+        for status in result_dict["ShipmentCreationResponse"]["StatusList"]["Status"]:
+            if status["@Level"] == "Error":
+                error_code = status["@Code"]
+                error_message = status["@Message"]
+                raise Exception(f"The server returned error {error_code} : {error_message}")
 
-    #------------------------------------#
-    #    functions to manage the xml     #
-    #------------------------------------#
+    final_dict = {
+        "ShipmentNumber": result_dict["ShipmentCreationResponse"]["ShipmentsList"]["Shipment"]["@ShipmentNumber"],
+        "Url": result_dict["ShipmentCreationResponse"]["ShipmentsList"]["Shipment"]["LabelList"]["Label"]["Output"],
+    }
 
-    def create_xmlrequest(self, vals):
-        '''[XML REQUEST]
-        Creates an xml tree fitted to the soap request to WSI2_CreationEtiquette,
-        from the given dictionnary. All dictionnary's keys must correspond to a field to pass.
+    return final_dict
 
-        IN = Dictionnary
-        OUT = XML (as an utf-8 encoded string) ready to send a request '''
 
-        #check if the given dictionnary is correct to make an xml
-        mandat_dic = MRWebService.valid_dict(self, vals)
+#------------------------------------#
+#       FUNCTION TO CALL             #
+#------------------------------------#
+def make_shipping_label(dictionnary):
+    """ FUNCTION TO CALL TO GET DATAS WANTED FROM THE WEB SERVICE
+    IN = Dictionnary with corresponding keys (see MR_Keys or Mondial Relay's Documentation)
+    OUT = Raise an error with indications 
+    or Expedition Number and URL to PDF
+    """
 
-        #initialisation of future md5key
-        security = ""
+    dictionnary = valid_dict(dictionnary)
 
-        # beginning of the xml tree, to be modified later with soapclean_xml()
-        envl = etree.Element('soapEnvelope')
-        body = etree.SubElement(envl, 'soapBody')
-        wsi2_crea = etree.SubElement(body,'WSI2_CreationEtiquette')
+    xmlstring = xmltodict.unparse(dictionnary, pretty=True)
 
-        # xml elements creation
-        for key in MR_KEYS:
-           if key != 'Texte':
-                xml_element = etree.SubElement(wsi2_crea,key)
-                xml_element.text = vals.get(key, '')
-                security += vals.get(key,'')
+    xmlstring = clean_xmlrequest(xmlstring)
 
-        # generates <Security/> xml element
-        security+=self.security_key
-        md5secu = md5(security.encode('utf-8')).hexdigest().upper()
+    response = sendxmlrequest(xmlstring)
 
-        xml_security = etree.SubElement(wsi2_crea, "Security" )
-        xml_security.text = md5secu
+    result = parsexmlresponse(response)
 
-        # add <Text/> last xml element if present, not included in security key
-        if 'Texte' in vals:
-            xml_element = etree.SubElement(wsi2_crea,"Texte")
-            xml_element.text = vals['Texte']
-
-        # generates and modifies the xml tree to obtain an apropriate xml soap string
-        xmltostring = etree.tostring(envl, encoding='utf-8', pretty_print=True)
-        xmlrequest = MRWebService.clean_xmlrequest(self,xmltostring)
-        return xmlrequest
-
-    def sendsoaprequest(self, xml_string, store):
-        ''' Send the POST request to the Web Service.
-        IN = proper xml-string
-        OUT = response from the Web Service, in an xml-string utf-8'''
-
-        header = {
-            'POST': '/Web_Services.asmx',
-            'Host': HOST,
-            'Content-Type': 'text/xml',
-            'charset': 'utf-8',
-            'Content-Lenght': 'Lenght',
-            'SOAPAction': 'http://www.mondialrelay.fr/webservice/WSI2_CreationEtiquette',
-        }
-        
-        url="https://api.mondialrelay.com/Web_Services.asmx"
-        response=requests.post(url,headers=header, data=xml_string, auth=(store,self.security_key))
-
-        return response.content
-
-    def parsexmlresponse(self,soap_response):
-        ''' Parse the response given by the WebService.
-        Extract and returns all fields' datas.
-        IN = xml-string utf-8 returned by Mondial Relay
-        OUT : Dictionnary or Error'''
-
-        strresp = soap_response
-        strresp = strresp.replace(ENCODE,b'')
-        tree= etree.fromstring(strresp)
-        string = etree.tostring(tree, pretty_print=True, encoding='utf-8')
-
-        response =  MRWebService.clean_xmlresponse(self, soap_response)
-        soapEnvelope = objectify.fromstring(response)
-
-        #---------------Parsing---------------#
-        stat = soapEnvelope.soapBody.WSI2_CreationEtiquetteResponse.WSI2_CreationEtiquetteResult.STAT
-
-        if stat == 0:
-            NumExpe = soapEnvelope.soapBody.WSI2_CreationEtiquetteResponse.WSI2_CreationEtiquetteResult.ExpeditionNum
-            urlpdf = 'https://' + HOST.replace('api', 'www') + str(soapEnvelope.soapBody.WSI2_CreationEtiquetteResponse.WSI2_CreationEtiquetteResult.URL_Etiquette)
-            resultat={'STAT':stat,'ExpeditionNum':NumExpe,'URL_Etiquette':urlpdf}
-        else:
-            resultat={'STAT':stat}
-            explanation = API_ERRORS_MESSAGE.get(stat)
-            raise Exception('The server returned %s . The mondial relay documentation says %s' % (stat,explanation))
-
-        return resultat
-        #TOFIX ?
-        return True
-
-    #------------------------------------#
-    #       FUNCTION TO CALL             #
-    #------------------------------------#
-    def make_shipping_label(self, dictionnary, labelformat="A4"):
-        ''' FUNCTION TO CALL TO GET DATAS WANTED FROM THE WEB SERVICE
-        IN = Dictionnary with corresponding keys (see MR_Keys or Mondial Relay's Documentation)
-        OUT = Raise an error with indications (see MR Doc for numbers correspondances)
-        or Expedition Number and URL to PDF'''
-
-        #MondialRelay api required only ascii in uppercase
-        for key in dictionnary:
-            dictionnary[key] = unidecode(dictionnary[key]).upper()
-
-        xmlstring = MRWebService.create_xmlrequest(self, dictionnary)
-
-        storename=dictionnary['Enseigne']
-        resp = MRWebService.sendsoaprequest(self,xmlstring, storename)
-
-        result = MRWebService.parsexmlresponse(self,resp)
-        url = result['URL_Etiquette']
-
-        #switch url if default format is not A4
-        if labelformat == 'A5':
-            url = url.replace('format=A4','format=A5')
-        if labelformat == '10x15':
-            url = url.replace('format=A4','format=10x15')
-
-        final = {
-                'ExpeditionNum': result['ExpeditionNum'],
-                'URL_Etiquette': url,
-                'format':labelformat,
-                }
-
-        return final
-
+    return result
