@@ -7,140 +7,41 @@ with open("api_pw.token") as f:
             api_pw=f.read().strip('\n')
 
 dico = {
-    "ShipmentCreationRequest": {
-        "Context": {
-            "Login": "BDTEST@business-api.mondialrelay.com",
-            "Password": api_pw,
-            "CustomerId": "BDTEST",
-            "Culture": "fr-FR",
-            "VersionAPI": "1.0",
-        },
-        "OutputOptions": {
-            "OutputFormat": "10x15",
-            "OutputType": "PdfUrl",
-        },
-        "ShipmentsList": {
-            "Shipment": {
-                "ORderNo": "test01",
-                "CustomerNo": "cust01",
-                "ParcelCount": 1,
-                "DeliveryMode": {   
-                    "@Mode": "24R",
-                    "@Location": "FR-33105",            
-                },
-                "CollectionMode": {
-                    "@Mode": "REL",            
-                },
-                "Parcels": {                       
-                    "Parcel": {
-                        "Weight": {
-                            "@Value": 350,
-                            "@Unit": "gr"
-                        },
-                    },
-                },
-                "DeliveryInstruction": "door code : 0000",
-            
-                "Sender": {
-                    "Address": {
-                        # "StreetName": "rue des Ajoncs",
-                        # "HouseNo": 21,
-                        "CountryCode": "FR",
-                        "Postcode": "59000",
-                        "City": "Lille",
-                        "AddressAdd1": "Jean Voimoncolis",
-                        # "AdressAdd2": "",
-                        "AdressAdd3": "21 rue des Ajoncs",
-                        "PhoneNo": "+33687654321",
-                        "email": "jv@email.com",
-                    },
-                },    
-                "Recipient": {
-                    "Address": {
-                        # "StreetName": "rue des acacias",
-                        # "HouseNo": 3,
-                        "CountryCode": "FR",
-                        "Postcode": "14000",
-                        "City": "Caen",
-                        "AddressAdd1": "Jean Michmuch",
-                        # "AdressAdd2": "",
-                        "AdressAdd3": "3 rue des Acacias",
-                        "PhoneNo": "0033612345678",
-                        "email": "jeanmichmuch@email.com",
-                    },
-                },
-            },
-        },
-    },
+        "Login": "BDTEST@business-api.mondialrelay.com",
+        "Password": api_pw,
+        "CustomerId": "BDTEST",
+        "Culture": "fr-FR",
+        "OutputFormat": "10x15",
+        "OrderNo": "test01",
+        "CustomerNo": "cust01",
+        "DeliveryMode": "24R",
+        "DeliveryLocation": "FR-33105",
+        "CollectionMode": "REL",
+        "ParcelWeight": 350,
+        "SenderStreetname": "rue des Ajoncs",
+        "SenderHouseNo": 21,
+        "SenderCountryCode": "FR",
+        "SenderPostCode": "59000",
+        "SenderCity": "Lille",
+        "SenderAddressAdd1": "Jean Voimoncolis",
+        # "SenderAddressAdd2": "",
+        # "SenderAddressAdd3": "",
+        "SenderPhoneNo": "+33687654321",
+        "SenderEmail": "jv@email.com",
+        "RecipientStreetname": "rue des acacias",
+        "RecipientHouseNo": 3,
+        "RecipientCountryCode": "FR",
+        "RecipientPostCode": "14000",
+        "RecipientCity": "Caen",
+        "RecipientAddressAdd1": "Jean Michmuch",
+        #RecipientAddressAdd2": "",
+        # "RecipientAddressAdd3": "",
+        "RecipientPhoneNo": "0033612345678",
+        "RecipientEmail": "jeanmichmuch@email.com",
+
 }
 
-
-dico_old = {
-        'Enseigne':'BDTEST13',
-        'ModeCol':'CCC',
-        'ModeLiv':'LCC',
-        'NDossier':'1234',
-        'NClient':'123456789',
-        'Expe_Langage':'FR',
-        'Expe_Ad1':'M.KALIF',
-        #'Expe_Ad2':,
-        'Expe_Ad3':'rue dailleurs',
-        #'Expe_Ad4':,
-        'Expe_Ville':'Machin Ville',
-        'Expe_CP':'69100',
-        'Expe_Pays':'FR',
-        'Expe_Tel1':'0033445566778',
-        #'Expe_Tel2':,
-        #'Expe_Mail':,
-        'Dest_Langage':'FR',
-        'Dest_Ad1':'M.KALIF',
-        ##'Dest_Ad2':,
-        'Dest_Ad3':'414 BD DES CANUTS',
-        #'Dest_Ad4':'etjebougeraipas',
-        'Dest_Ville':'LYON',
-        'Dest_CP':'69300',
-        'Dest_Pays':'FR',
-        'Dest_Tel1':'0033409887766',
-        #'Dest_Tel2':,
-        #'Dest_Mail':,
-        'Poids':'30000',
-        'Longueur':'145',
-        #'Taille':,
-        'NbColis':'1',
-        'CRT_Valeur':'0',
-        #'CRT_Devise':,
-        #'EXP_Valeur':,
-        #'EXP_Devise':,
-        #'COL_Rel_Pays':,
-        #'COL_Rel':,
-        'LIV_Rel_Pays':'FR',
-        'LIV_Rel':'78857',
-        #'TAvisage':,
-        #'TReprise':,
-        #'Montage':,
-        #'TRDV':,
-        #'Assurance':,
-        #'Instructions':,
-        #'Texte':,
-    }
-
-#dico['ModeLiv'] = 'LDS'
-#dico['ModeCol'] = 'CCC'
-
 #print dico
-
-response = '<?xml version="1.0" encoding="utf-8"?>\
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"\
- xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\
- xmlns:xsd="http://www.w3.org/2001/XMLSchema">\
-<soap:Body><WSI2_CreationEtiquetteResponse\
- xmlns="http://www.mondialrelay.fr/webservice/">\
-<WSI2_CreationEtiquetteResult><STAT>0</STAT>\
-<ExpeditionNum>17193867</ExpeditionNum>\
-<URL_Etiquette>/PDF/StickerMaker2.aspx?ens=BDTEST1211&amp;expedition=17193867&amp;lg=FR&amp;\
-format=A4&amp;crc=9579B14BCF9FA5B894A27A952DD90CC7</URL_Etiquette>\
-</WSI2_CreationEtiquetteResult></WSI2_CreationEtiquetteResponse></soap:Body></soap:Envelope>'
-
 
 reqst = make_shipping_label(dico)
 
