@@ -56,7 +56,7 @@ Check the Mondial Relay documentation to see the expected values.
 Mondial Relay API V2 documentation :
 https://www.mondialrelay.fr/media/123861/web-service-dual-carrier-v-27.pdf
 
-## Credits:
+## Credits
 This is a fork from initial Akretion mondialrelay_pyt, made by Sébastien BEAU and Aymeric LECOMTE, thanks for their work that helped me a lot. This fork was made by Henri DEWILDE.
 
 ## Copyright and License
