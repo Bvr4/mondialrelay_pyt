@@ -30,7 +30,7 @@
 """
 
 __author__ = "Sébastien BEAU / Aymeric LECOMTE / Henri DEWILDE"
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 __date__ = "2025-02-05"
 
 
