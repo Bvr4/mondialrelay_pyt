@@ -1,10 +1,7 @@
-#!/usr/bin/env python
-
 import os
 from setuptools import setup
 
-__author__ = 'Akretion : aymeric.lecomte@akretion.com sebastien.beau@akretion.com'
-__version__ = '0.1.0'
+__version__ = '0.2.0'
 
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
@@ -18,16 +15,19 @@ setup(
     include_package_data = True,
 
     # Package dependencies.
-#    install_requires = ['lxml'] 
+   install_requires = [
+        "requests >= 2.32.3",
+        "xmltodict >= 0.14.2",
+    ], 
 
     # Metadata for PyPI.
-    author = 'Aymeric Lecomte, Sebastien Beau',
-    author_email = 'aymeric.lecomte@akretion.com, sebastien.beau@akretion.com',
+    author = 'Aymeric Lecomte, Sebastien Beau, Henri Dewilde',
+    author_email = 'aymeric.lecomte@akretion.com, sebastien.beau@akretion.com, henri.dewilde@gmail.com',
     license = 'GNU AGPL-3',
-    url = 'http://github.com/akretion/mondialrelay_pyt',
+    url = 'http://github.com/Bvr4/mondialrelay_pyt',
     packages=['mondialrelay_pyt'],
     keywords = 'mondial relay api client',
-    description = 'A library to access Mondial Relay WSI2_CreateEtiquette Web Service from Python.',
+    description = 'A library to access Mondial Relay Web Service from Python.',
     long_description = read('README.md'),
     classifiers = [
         'Development Status :: 1 - Beta',

@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 from mondialrelay_pyt import make_shipping_label
 
 with open("api_pw.token") as f:

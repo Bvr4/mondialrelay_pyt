@@ -1,16 +1,16 @@
 #mondialrelay_pyt
 ========
 
-Python Mondial Relay API V2 (WEB SERVICE DUAL CARRIER)
+A Python library to access Mondial Relay API V2 (WEB SERVICE DUAL CARRIER), in order to create shipping labels for outbound/return parcels.
 
 ## Installation
 
-Download mondialrelay_pyt as a .tar.gz or .zip from here, untar it and run:
+Install it using pip. In a terminal :  
 
-    python setup.py install
+    pip install mondialrelay_pyt
 
 ## Usage 
-Call make_shipping_label function from mondialrelay_pyt giving it a dictionary.
+Call make_shipping_label() function from mondialrelay_pyt giving it a dictionary.
 
 The dictionary must contain the following keys:  
 
