@@ -30,7 +30,7 @@
 """
 
 __author__ = "Sébastien BEAU / Aymeric LECOMTE / Henri DEWILDE"
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 __date__ = "2025-02-05"
 
 
@@ -262,9 +262,13 @@ def parsexmlresponse(response):
 
     print(result_dict)
 
-    # If the server retruned an error
+    # If the server returned an error
     if result_dict["ShipmentCreationResponse"]["StatusList"] is not None and "Status" in result_dict["ShipmentCreationResponse"]["StatusList"]:
-        for status in result_dict["ShipmentCreationResponse"]["StatusList"]["Status"]:
+        status_data = result_dict["ShipmentCreationResponse"]["StatusList"]["Status"]
+        if isinstance(status_data, dict):  # If a sigle status is returned as a dict, we transform it in a list to uniform the data treatment
+            status_data = [status_data] 
+
+        for status in status_data:
             if status["@Level"] == "Error":
                 error_code = status["@Code"]
                 error_message = status["@Message"]
